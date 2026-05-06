@@ -1,1 +1,1 @@
-# tkh-ai-hackathon-may-2025
+# tkh-ai-hackathon-may-2026
