@@ -652,7 +652,7 @@
     <div id="page-dashboard" class="page active">
       <div class="page-header">
         <div>
-          <div class="page-title">Good morning ☀</div>
+          <div class="page-title" id="dash-greeting">Good morning ☀</div>
           <div class="page-sub" id="dash-date"></div>
         </div>
         <div style="display:flex;gap:8px;">
@@ -841,7 +841,7 @@
             <div style="display:flex;align-items:center;gap:8px;">
               <button class="btn" onclick="cancelImportReview()">Cancel</button>
               <!-- Split apply button: primary action + location dropdown -->
-              <div style="display:flex;border-radius:var(--radius);overflow:hidden;border:1px solid var(--indigo);">
+              <div style="display:flex;border-radius:var(--radius);border:1px solid var(--indigo);">
                 <button id="review-apply-btn" onclick="applyImportReview()"
                   style="padding:8px 16px;font-size:13px;font-weight:500;font-family:'Inter',sans-serif;background:var(--indigo);color:#f5f0e8;border:none;cursor:pointer;white-space:nowrap;">
                   ✓ Add to Inventory · <span id="review-loc-label">Stamford</span>
@@ -850,7 +850,7 @@
                 <div style="position:relative;">
                   <button id="review-loc-arrow" onclick="toggleReviewLocDropdown()"
                     style="padding:8px 10px;font-size:12px;background:var(--indigo);color:#f5f0e8;border:none;cursor:pointer;height:100%;">▾</button>
-                  <div id="review-loc-dropdown" style="display:none;position:absolute;right:0;top:100%;background:var(--cream);border:1px solid var(--border-med);border-radius:var(--radius);box-shadow:var(--shadow-lg);min-width:140px;z-index:100;margin-top:4px;">
+                  <div id="review-loc-dropdown" style="display:none;position:absolute;right:0;top:100%;background:var(--cream);border:1px solid var(--border-med);border-radius:var(--radius);box-shadow:var(--shadow-lg);min-width:140px;z-index:1000;margin-top:4px;">
                     <button onclick="setReviewLocation('Stamford');toggleReviewLocDropdown()"
                       style="width:100%;text-align:left;padding:9px 14px;font-size:13px;font-family:'Inter',sans-serif;background:none;border:none;cursor:pointer;color:var(--text);"
                       onmouseenter="this.style.background='var(--indigo-xlight)'" onmouseleave="this.style.background='none'">
@@ -1056,11 +1056,51 @@
 
       <div class="card">
         <div class="card-title">Data management</div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+
+        <!-- Backup / Restore / Clear row -->
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;">
           <button class="btn" onclick="exportJSON()">⬇ Backup data (JSON)</button>
-          <button class="btn" onclick="document.getElementById('restore-file').click()">⬆ Restore backup</button>
+          <button class="btn" onclick="requirePin('restore')">⬆ Restore backup</button>
           <input type="file" id="restore-file" accept=".json" style="display:none;" onchange="restoreBackup(event)">
-          <button class="btn btn-danger" onclick="clearAllData()">🗑 Clear all data</button>
+          <button class="btn btn-danger" onclick="requirePin('clear')">🗑 Clear all data</button>
+        </div>
+
+        <!-- Divider -->
+        <div style="height:1px;background:var(--border);margin-bottom:16px;"></div>
+
+        <!-- PIN protection row -->
+        <div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+            <span style="font-size:13px;font-weight:500;color:var(--text);">🔐 PIN protection</span>
+            <span style="font-size:12px;color:var(--text-muted);">protects restore &amp; clear all data</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <label style="position:relative;display:inline-block;width:42px;height:24px;cursor:pointer;">
+              <input type="checkbox" id="pin-toggle" onchange="togglePinProtection(this.checked)"
+                style="opacity:0;width:0;height:0;position:absolute;">
+              <span id="pin-toggle-track" style="position:absolute;inset:0;border-radius:99px;background:var(--border-med);transition:0.2s;"></span>
+              <span id="pin-toggle-thumb" style="position:absolute;left:3px;top:3px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,0.2);transition:0.2s;"></span>
+            </label>
+            <span id="pin-status" style="font-size:12px;color:var(--text-muted);white-space:nowrap;">Off</span>
+          </div>
+        </div>
+
+        <!-- PIN setup (hidden until toggled on) -->
+        <div id="pin-setup-area" style="display:none;margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
+          <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+            <div>
+              <label class="form-label">Set PIN (4–6 digits)</label>
+              <input type="password" id="pin-input" maxlength="6" pattern="[0-9]*" inputmode="numeric"
+                placeholder="••••" style="width:120px;letter-spacing:0.2em;font-size:18px;text-align:center;">
+            </div>
+            <div>
+              <label class="form-label">Confirm PIN</label>
+              <input type="password" id="pin-confirm" maxlength="6" pattern="[0-9]*" inputmode="numeric"
+                placeholder="••••" style="width:120px;letter-spacing:0.2em;font-size:18px;text-align:center;">
+            </div>
+            <button class="btn btn-primary" onclick="savePin()">Save PIN</button>
+          </div>
+          <div id="pin-msg" style="margin-top:8px;font-size:12px;"></div>
         </div>
       </div>
     </div>
@@ -1220,6 +1260,24 @@
     <div class="modal-actions">
       <button class="btn" onclick="closeModal()">Cancel</button>
       <button class="btn btn-primary" onclick="saveItem()">Save item</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PIN MODAL ══ -->
+<div class="modal-overlay" id="pin-modal">
+  <div class="modal" style="width:340px;text-align:center;">
+    <div style="font-size:28px;margin-bottom:8px;">🔐</div>
+    <h3 style="margin-bottom:6px;">Enter PIN</h3>
+    <p id="pin-modal-sub" style="font-size:13px;color:var(--text-muted);margin-bottom:20px;">Required to continue</p>
+    <input type="password" id="pin-entry" maxlength="6" pattern="[0-9]*" inputmode="numeric"
+      placeholder="••••"
+      style="width:140px;letter-spacing:0.3em;font-size:24px;text-align:center;padding:10px;border:1.5px solid var(--border-med);border-radius:var(--radius);background:var(--warm-white);outline:none;display:block;margin:0 auto 8px;"
+      onkeydown="if(event.key==='Enter')submitPin()">
+    <div id="pin-entry-error" style="font-size:12px;color:var(--crit);min-height:18px;margin-bottom:12px;"></div>
+    <div style="display:flex;gap:8px;justify-content:center;">
+      <button class="btn btn-primary" onclick="submitPin()">Confirm</button>
+      <button class="btn" onclick="closePinModal()">Cancel</button>
     </div>
   </div>
 </div>
@@ -1615,6 +1673,18 @@ function showImportDupWarning(reason, detail, onProceed) {
 }
 // ═══════════════════════════════════════════
 function showPage(id, btn) {
+  // Clear import state when navigating away from import page
+  const current = document.querySelector('.page.active');
+  if (current && current.id === 'page-import' && id !== 'import') {
+    clearImport();
+    cancelImportReview();
+    locationManuallySet = false;
+    document.getElementById('manual-entry-bar').style.display = '';
+    const dupBanner = document.getElementById('import-dup-warning');
+    if (dupBanner) dupBanner.remove();
+    const summaryCard = document.getElementById('apply-summary-card');
+    if (summaryCard) summaryCard.remove();
+  }
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
   document.getElementById('page-' + id).classList.add('active');
@@ -1635,7 +1705,17 @@ function renderPage(id) {
 //  DASHBOARD
 // ═══════════════════════════════════════════
 function renderDashboard() {
-  // date
+  // Time-aware greeting
+  const hour = new Date().getHours();
+  let greeting, icon;
+  if (hour >= 5 && hour < 12)       { greeting = 'Good morning';   icon = '☀️'; }
+  else if (hour >= 12 && hour < 17) { greeting = 'Good afternoon'; icon = '🌤'; }
+  else if (hour >= 17 && hour < 21) { greeting = 'Good evening';   icon = '🌇'; }
+  else                               { greeting = 'Good night';     icon = '🌙'; }
+  const greetingEl = document.getElementById('dash-greeting');
+  if (greetingEl) greetingEl.textContent = `${greeting} ${icon}`;
+
+  // Date
   document.getElementById('dash-date').textContent =
     new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
 
@@ -2193,8 +2273,9 @@ function renderImportLog() {
   }).join('');
 }
 
-function setReviewLocation(loc) {
+function setReviewLocation(loc, manual = true) {
   importLocation = loc;
+  if (manual) locationManuallySet = true;
   // Update split button label
   const label = document.getElementById('review-loc-label');
   if (label) label.textContent = loc;
@@ -2207,11 +2288,31 @@ function setReviewLocation(loc) {
     if (arrow) arrow.style.background = isSales ? 'var(--crit)' : 'var(--indigo)';
     const splitBorder = applyBtn.parentElement?.parentElement;
     if (splitBorder) splitBorder.style.borderColor = isSales ? 'var(--crit)' : 'var(--indigo)';
-    applyBtn.querySelector ? null : null;
   }
   // Update sub-label
   const sub = document.getElementById('review-sub');
-  if (sub) sub.textContent = `${importMode === 'sales' ? 'Sales / Usage' : 'Purchase / Restock'} · ${loc} · Edit or add rows before applying`;
+  if (sub) sub.textContent = `${isSales ? 'Sales / Usage' : 'Purchase / Restock'} · ${loc} · Edit or add rows before applying`;
+
+  // Refresh stock hints for all rows (sales mode only)
+  if (isSales) {
+    document.querySelectorAll('#review-tbody tr').forEach(row => {
+      const nameEl = row.querySelector('[data-field="name"]');
+      if (!nameEl) return;
+      const idx = nameEl.dataset.idx;
+      const hintEl = document.getElementById(`stock-hint-${idx}`) || row.querySelector('.stock-hint');
+      if (!hintEl) return;
+      const name = nameEl.value.trim();
+      const existing = items.find(it => it.name.toLowerCase() === name.toLowerCase());
+      if (existing) {
+        const avail = existing.locations?.[loc] ?? existing.qty ?? 0;
+        const color = avail === 0 ? 'var(--crit)' : avail <= (existing.reorder||0) ? 'var(--low)' : 'var(--text-muted)';
+        hintEl.style.color = color;
+        hintEl.textContent = `${avail} at ${loc}`;
+      } else {
+        hintEl.textContent = '';
+      }
+    });
+  }
 }
 
 function toggleReviewLocDropdown() {
@@ -2236,6 +2337,7 @@ function toggleReviewLocDropdown() {
 // ═══════════════════════════════════════════
 let importMode = 'purchase';   // 'purchase' | 'sales'
 let importLocation = 'Stamford';
+let locationManuallySet = false; // true once user explicitly picks a location
 
 function setImportTab(mode) {
   importMode = mode;
@@ -2267,6 +2369,9 @@ function setImportTab(mode) {
     document.getElementById('extract-btn').textContent = '✦ Extract & Deduct Stock';
   }
   clearImport();
+  cancelImportReview();
+  locationManuallySet = false;
+  document.getElementById('manual-entry-bar').style.display = '';
 }
 
 function setImportLocation(loc) {
@@ -2476,6 +2581,7 @@ let pendingImportLocation = 'Stamford';
 let reviewRowCount = 0;
 
 function makeReviewRow(e, i, cats) {
+  const isSales = importMode === 'sales';
   const existing = items.find(it => it.name.toLowerCase().trim() === (e.name||'').toLowerCase().trim());
   const matchBadge = existing
     ? `<span style="font-size:11px;background:var(--ok-bg);color:var(--ok);border-radius:99px;padding:2px 8px;">✓ Exists</span>`
@@ -2484,10 +2590,20 @@ function makeReviewRow(e, i, cats) {
     `<option value="${c}" ${(e.category||existing?.cat||'General')===c?'selected':''}>${c}</option>`
   ).join('');
   const inputStyle = "width:100%;font-size:12px;border:1px solid var(--border-med);border-radius:6px;padding:5px 8px;background:var(--warm-white);color:var(--text);font-family:'Inter',sans-serif;min-width:0;";
-  // Build datalist of unique product names from inventory
   const listId = `review-names-${i}`;
   const nameOptions = [...new Set(items.map(it => it.name))].sort()
     .map(n => `<option value="${n.replace(/"/g,'&quot;')}">`).join('');
+
+  // Stock hint for sales mode — always render the div, hide it in purchase mode
+  const loc = importLocation || 'Stamford';
+  let stockHint = '';
+  if (isSales && existing) {
+    const avail = existing.locations?.[loc] ?? existing.qty ?? 0;
+    const color = avail === 0 ? 'var(--crit)' : avail <= (existing.reorder||0) ? 'var(--low)' : 'var(--text-muted)';
+    stockHint = `<div class="stock-hint" id="stock-hint-${i}" style="font-size:10px;color:${color};margin-top:3px;text-align:center;">${avail} at ${loc}</div>`;
+  } else if (isSales) {
+    stockHint = `<div class="stock-hint" id="stock-hint-${i}" style="font-size:10px;margin-top:3px;text-align:center;"></div>`;
+  }
 
   return `<tr id="review-row-${i}">
     <datalist id="${listId}">${nameOptions}</datalist>
@@ -2499,7 +2615,10 @@ function makeReviewRow(e, i, cats) {
     <td><input type="text" value="${(e.variant||existing?.variant||'').replace(/"/g,'&quot;')}" data-field="variant" data-idx="${i}" placeholder="flavor, scent…" style="${inputStyle}"></td>
     <td><input type="text" value="${existing?.sku||e.sku||''}" data-field="sku" data-idx="${i}" placeholder="SKU" style="${inputStyle}font-family:monospace;"></td>
     <td><select data-field="category" data-idx="${i}" style="${inputStyle}padding:5px 6px;">${catOptions}</select></td>
-    <td><input type="number" value="${e.qty||1}" min="0" step="1" data-field="qty" data-idx="${i}" style="${inputStyle}text-align:center;"></td>
+    <td>
+      <input type="number" value="${e.qty||1}" min="0" step="1" data-field="qty" data-idx="${i}" style="${inputStyle}text-align:center;">
+      ${stockHint}
+    </td>
     <td><input type="text" value="${existing?.unit||e.unit||'units'}" data-field="unit" data-idx="${i}" style="${inputStyle}"></td>
     <td style="text-align:center;">
       ${matchBadge}
@@ -2530,6 +2649,18 @@ function onReviewNameInput(input, i) {
       badgeCell.style.background = 'var(--ok-bg)';
       badgeCell.style.color = 'var(--ok)';
       badgeCell.textContent = '✓ Exists';
+    }
+    // Update stock hint for sales mode
+    if (importMode === 'sales') {
+      const loc = importLocation || 'Stamford';
+      const avail = match.locations?.[loc] ?? match.qty ?? 0;
+      const color = avail === 0 ? 'var(--crit)' : avail <= (match.reorder||0) ? 'var(--low)' : 'var(--text-muted)';
+      const idx = input.dataset.idx;
+      const hintEl = document.getElementById(`stock-hint-${idx}`) || row.querySelector('.stock-hint');
+      if (hintEl) {
+        hintEl.style.color = color;
+        hintEl.textContent = `${avail} at ${loc}`;
+      }
     }
   } else if (name) {
     const badgeCell = row.querySelector('td:last-child span');
@@ -2566,12 +2697,12 @@ function showImportReview(extracted) {
   const splitWrap = btn?.parentElement?.parentElement;
   if (splitWrap) splitWrap.style.borderColor = applyColor;
 
-  // Auto-detect location from content
+  // Auto-detect location from content — only if user hasn't manually chosen one
   const textEl = document.getElementById('import-text');
   const rawContent = textEl.dataset.pdfBase64 ? '' : (textEl.value || '');
   const detectedLoc = detectLocationFromText(rawContent);
-  if (detectedLoc) setReviewLocation(detectedLoc);
-  else setReviewLocation(importLocation); // keep current selection
+  if (detectedLoc && !locationManuallySet) setReviewLocation(detectedLoc, false);
+  else setReviewLocation(importLocation, false); // sync buttons without overriding
 
   reviewRowCount = extracted.length;
   tbody.innerHTML = extracted.map((e, i) => makeReviewRow(e, i, cats)).join('');
@@ -2655,7 +2786,7 @@ function cancelImportReview() {
 
 function applyImportReview() {
   const isSales = pendingImportMode === 'sales';
-  const loc = pendingImportLocation;
+  const loc = importLocation; // always use current selection — user may have changed it after panel opened
   const cat = document.getElementById('import-cat').value;
   const type = document.getElementById('import-type').value;
 
@@ -2676,6 +2807,39 @@ function applyImportReview() {
 
   if (!toApply.length) { toast('No items selected'); return; }
 
+  // ── Sales pre-flight: check for insufficient stock ──
+  if (isSales) {
+    const insufficient = [];
+    toApply.forEach(e => {
+      const existing = items.find(i => i.name.toLowerCase().trim() === e.name.toLowerCase().trim());
+      if (existing) {
+        if (!existing.locations) existing.locations = { Stamford: existing.qty||0, Westport: 0 };
+        const avail = existing.locations[loc] || 0;
+        if (e.qty > avail) {
+          insufficient.push({ name: e.name, requested: e.qty, available: avail });
+        }
+      }
+    });
+
+    if (insufficient.length > 0) {
+      const lines = insufficient.map(x =>
+        `• ${x.name}: need ${x.requested}, only ${x.available} at ${loc}`
+      ).join('\n');
+      const proceed = confirm(
+        `⚠ Insufficient stock at ${loc} for ${insufficient.length} item${insufficient.length>1?'s':''}:\n\n${lines}\n\nThis would result in negative inventory.\n\nPlease reduce the quantities or cancel.`
+      );
+      if (!proceed) return;
+      // If they proceed anyway, cap at available (no negatives)
+      toApply.forEach(e => {
+        const existing = items.find(i => i.name.toLowerCase().trim() === e.name.toLowerCase().trim());
+        if (existing) {
+          const avail = existing.locations?.[loc] || 0;
+          if (e.qty > avail) e.qty = avail;
+        }
+      });
+    }
+  }
+
   let affected = 0, notFound = 0, skipped = 0;
   const t = today();
 
@@ -2687,9 +2851,9 @@ function applyImportReview() {
       recordQtySnapshot(existing, prevTotal);
       if (isSales) {
         const current = existing.locations[loc]||0;
-        const deduct = Math.min(e.qty, current);
+        const deduct = Math.min(e.qty, current); // never below 0
         if (deduct === 0 && current === 0) { skipped++; return; }
-        existing.locations[loc] = current - deduct;
+        existing.locations[loc] = Math.max(0, current - deduct);
       } else {
         existing.locations[loc] = (existing.locations[loc]||0) + e.qty;
       }
@@ -2940,6 +3104,8 @@ function exportJSON() {
 function restoreBackup(evt) {
   const file = evt.target.files[0];
   if (!file) return;
+  // Reset input so same file can be selected again after a clear
+  evt.target.value = '';
   const reader = new FileReader();
   reader.onload = e => {
     try {
@@ -2955,14 +3121,172 @@ function restoreBackup(evt) {
         saveShipments();
         saveTransfers();
         saveFingerprints();
+        autoFlipOverdueShipments();
         renderPage('dashboard');
         toast(`✓ Backup restored — ${items.length} items, ${shipments.length} shipments, ${transfers.length} transfers`);
       } else {
         toast('Invalid backup file — no items found');
       }
-    } catch(err) { toast('Could not read backup file'); }
+    } catch(err) { toast('Could not read backup file: ' + err.message); }
   };
   reader.readAsText(file);
+}
+
+// ═══════════════════════════════════════════
+//  PIN SECURITY
+// ═══════════════════════════════════════════
+let pinEnabled = false;
+let pinHash    = null;
+let _pinAction = null; // pending action after correct PIN
+
+function loadPin() {
+  pinEnabled = localStorage.getItem('inv_pin_enabled') === 'true';
+  pinHash    = localStorage.getItem('inv_pin_hash') || null;
+  // Sync toggle UI
+  const toggle = document.getElementById('pin-toggle');
+  const track  = document.getElementById('pin-toggle-track');
+  const thumb  = document.getElementById('pin-toggle-thumb');
+  const status = document.getElementById('pin-status');
+  if (toggle) toggle.checked = pinEnabled;
+  if (track)  track.style.background  = pinEnabled ? 'var(--indigo)' : 'var(--border-med)';
+  if (thumb)  thumb.style.left        = pinEnabled ? '21px' : '3px';
+  if (status) status.textContent      = pinEnabled ? (pinHash ? 'On — PIN set' : 'On — PIN not set yet') : 'Off';
+}
+
+function hashPin(pin) {
+  // Simple FNV-1a hash of the PIN string
+  let h = 0x811c9dc5;
+  for (let i = 0; i < pin.length; i++) {
+    h ^= pin.charCodeAt(i);
+    h = (h * 0x01000193) >>> 0;
+  }
+  return h.toString(16);
+}
+
+function togglePinProtection(enabled) {
+  if (enabled) {
+    // Show setup area to set a PIN before enabling
+    document.getElementById('pin-setup-area').style.display = '';
+    document.getElementById('pin-toggle-track').style.background = 'var(--indigo)';
+    document.getElementById('pin-toggle-thumb').style.left = '21px';
+    document.getElementById('pin-status').textContent = 'On — set your PIN below';
+    document.getElementById('pin-input').focus();
+  } else {
+    // If currently enabled with a PIN, require it to disable
+    if (pinEnabled && pinHash) {
+      _pinAction = 'disable';
+      openPinModal('Enter your current PIN to turn off protection');
+      // Revert toggle visually until confirmed
+      document.getElementById('pin-toggle').checked = true;
+      return;
+    }
+    _disablePin();
+  }
+}
+
+function _disablePin() {
+  pinEnabled = false;
+  pinHash    = null;
+  localStorage.removeItem('inv_pin_enabled');
+  localStorage.removeItem('inv_pin_hash');
+  document.getElementById('pin-setup-area').style.display = 'none';
+  document.getElementById('pin-toggle-track').style.background = 'var(--border-med)';
+  document.getElementById('pin-toggle-thumb').style.left = '3px';
+  document.getElementById('pin-toggle').checked = false;
+  document.getElementById('pin-status').textContent = 'Off';
+  document.getElementById('pin-msg').textContent = '';
+  document.getElementById('pin-input').value = '';
+  document.getElementById('pin-confirm').value = '';
+  toast('PIN protection disabled');
+}
+
+function savePin() {
+  const pin     = document.getElementById('pin-input').value.trim();
+  const confirm = document.getElementById('pin-confirm').value.trim();
+  const msg     = document.getElementById('pin-msg');
+
+  if (!/^\d{4,6}$/.test(pin)) {
+    msg.style.color = 'var(--crit)';
+    msg.textContent = 'PIN must be 4–6 digits.';
+    return;
+  }
+  if (pin !== confirm) {
+    msg.style.color = 'var(--crit)';
+    msg.textContent = 'PINs do not match — try again.';
+    return;
+  }
+
+  pinEnabled = true;
+  pinHash    = hashPin(pin);
+  localStorage.setItem('inv_pin_enabled', 'true');
+  localStorage.setItem('inv_pin_hash', pinHash);
+
+  document.getElementById('pin-setup-area').style.display = 'none';
+  document.getElementById('pin-input').value   = '';
+  document.getElementById('pin-confirm').value = '';
+  document.getElementById('pin-status').textContent = 'On — PIN set ✓';
+  msg.style.color = 'var(--ok)';
+  msg.textContent = '';
+  toast('✓ PIN saved — protection is active');
+}
+
+function requirePin(action) {
+  if (!pinEnabled || !pinHash) {
+    // No PIN set — execute directly
+    _executeAction(action);
+    return;
+  }
+  _pinAction = action;
+  const labels = {
+    restore: 'Enter PIN to restore backup',
+    clear:   'Enter PIN to clear all data',
+    disable: 'Enter PIN to disable protection',
+  };
+  openPinModal(labels[action] || 'Enter PIN to continue');
+}
+
+function openPinModal(subtitle) {
+  document.getElementById('pin-modal-sub').textContent   = subtitle || 'Required to continue';
+  document.getElementById('pin-entry').value             = '';
+  document.getElementById('pin-entry-error').textContent = '';
+  document.getElementById('pin-modal').classList.add('open');
+  setTimeout(() => document.getElementById('pin-entry').focus(), 80);
+}
+
+function closePinModal() {
+  document.getElementById('pin-modal').classList.remove('open');
+  document.getElementById('pin-entry').value             = '';
+  document.getElementById('pin-entry-error').textContent = '';
+  _pinAction = null;
+}
+
+function submitPin() {
+  const entered = document.getElementById('pin-entry').value.trim();
+  const errEl   = document.getElementById('pin-entry-error');
+
+  if (!entered) { errEl.textContent = 'Please enter your PIN.'; return; }
+  if (hashPin(entered) !== pinHash) {
+    errEl.textContent = 'Incorrect PIN — try again.';
+    document.getElementById('pin-entry').value = '';
+    document.getElementById('pin-entry').focus();
+    return;
+  }
+
+  // Correct PIN
+  closePinModal();
+  const action = _pinAction;
+  _pinAction = null;
+
+  if (action === 'disable') { _disablePin(); return; }
+  _executeAction(action);
+}
+
+function _executeAction(action) {
+  if (action === 'restore') {
+    document.getElementById('restore-file').click();
+  } else if (action === 'clear') {
+    clearAllData();
+  }
 }
 
 // ═══════════════════════════════════════════
@@ -3008,6 +3332,7 @@ function clearAllData() {
   localStorage.removeItem('center_shipments');
   localStorage.removeItem('center_transfers');
   localStorage.removeItem('inv_fingerprints');
+  // Note: PIN settings (inv_pin, inv_pin_enabled) are intentionally preserved
   save(); saveShipments(); saveTransfers();
   renderPage('dashboard');
   toast('All data cleared — ready for your real inventory');
@@ -3051,6 +3376,7 @@ document.addEventListener('DOMContentLoaded', () => {
   loadShipments();
   loadTransfers();
   loadFingerprints();
+  loadPin();
   injectIndigoRitualsProducts();
   injectSampleProducts();
   autoFlipOverdueShipments();
@@ -3348,14 +3674,17 @@ function renderShipments() {
         <div style="grid-column:1/-1;background:var(--crit);padding:10px 16px;margin:-18px -22px 14px;border-radius:var(--radius-lg) var(--radius-lg) 0 0;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
           <span style="color:#fff;font-size:13px;font-weight:600;">⚠ OVERDUE by ${daysOver} day${daysOver===1?'':'s'} — expected ${new Date(s.eta+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span>
           <div style="display:flex;gap:6px;align-items:center;">
-            <select class="btn" style="padding:5px 8px;font-size:12px;cursor:pointer;background:rgba(255,255,255,0.15);color:#fff;border-color:rgba(255,255,255,0.4);" onchange="changeShipmentStatus('${s.id}',this.value)">
-              <option style="background:#fff;color:#1a1f3a;" ${s.status==='Expected'?'selected':''}>Expected</option>
-              <option style="background:#fff;color:#1a1f3a;" ${s.status==='In Transit'?'selected':''}>In Transit</option>
-              <option style="background:#fff;color:#1a1f3a;" ${s.status==='Received'?'selected':''}>Received</option>
-              <option style="background:#fff;color:#1a1f3a;" ${s.status==='Returned'?'selected':''}>Returned</option>
-              <option style="background:#fff;color:#1a1f3a;" ${s.status==='Delayed'?'selected':''}>Delayed</option>
-            </select>
-            <button class="btn" style="padding:5px 10px;font-size:12px;background:rgba(255,255,255,0.15);color:#fff;border-color:rgba(255,255,255,0.4);" onclick="openEditShipmentModal('${s.id}')">✏ Edit</button>
+            ${isReceived
+              ? `<span style="background:rgba(255,255,255,0.2);color:#fff;border-radius:6px;padding:5px 12px;font-size:12px;font-weight:500;">✓ Received</span>`
+              : `<select class="btn" style="padding:5px 8px;font-size:12px;cursor:pointer;background:rgba(255,255,255,0.15);color:#fff;border-color:rgba(255,255,255,0.4);" onchange="changeShipmentStatus('${s.id}',this.value)">
+                  <option style="background:#fff;color:#1a1f3a;" ${s.status==='Expected'?'selected':''}>Expected</option>
+                  <option style="background:#fff;color:#1a1f3a;" ${s.status==='In Transit'?'selected':''}>In Transit</option>
+                  <option style="background:#fff;color:#1a1f3a;" ${s.status==='Received'?'selected':''}>Received</option>
+                  <option style="background:#fff;color:#1a1f3a;" ${s.status==='Returned'?'selected':''}>Returned</option>
+                  <option style="background:#fff;color:#1a1f3a;" ${s.status==='Delayed'?'selected':''}>Delayed</option>
+                </select>
+                <button class="btn" style="padding:5px 10px;font-size:12px;background:rgba(255,255,255,0.15);color:#fff;border-color:rgba(255,255,255,0.4);" onclick="openEditShipmentModal('${s.id}')">✏ Edit</button>`
+            }
             <button class="btn btn-danger" style="padding:5px 10px;font-size:12px;background:rgba(0,0,0,0.2);color:#fff;border-color:rgba(255,255,255,0.2);" onclick="deleteShipment('${s.id}')">✕</button>
           </div>
         </div>` : ''}
@@ -3382,14 +3711,17 @@ function renderShipments() {
           ${isReceived ? `<div class="received-banner">✓ Inventory updated — quantities reflected in Inventory</div>` : ''}
         </div>
         ${!over ? `<div class="shipment-actions">
-          <select class="btn" style="padding:6px 10px;font-size:12px;cursor:pointer;" onchange="changeShipmentStatus('${s.id}',this.value)">
-            <option ${s.status==='Expected'?'selected':''}>Expected</option>
-            <option ${s.status==='In Transit'?'selected':''}>In Transit</option>
-            <option ${s.status==='Received'?'selected':''}>Received</option>
-            <option ${s.status==='Returned'?'selected':''}>Returned</option>
-            <option ${s.status==='Delayed'?'selected':''}>Delayed</option>
-          </select>
-          <button class="btn" style="font-size:12px;padding:6px 12px;" onclick="openEditShipmentModal('${s.id}')">✏ Edit</button>
+          ${isReceived
+            ? `<span style="background:var(--ok-bg);color:var(--ok);border-radius:6px;padding:6px 14px;font-size:12px;font-weight:500;">✓ Received — locked</span>`
+            : `<select class="btn" style="padding:6px 10px;font-size:12px;cursor:pointer;" onchange="changeShipmentStatus('${s.id}',this.value)">
+                <option ${s.status==='Expected'?'selected':''}>Expected</option>
+                <option ${s.status==='In Transit'?'selected':''}>In Transit</option>
+                <option ${s.status==='Received'?'selected':''}>Received</option>
+                <option ${s.status==='Returned'?'selected':''}>Returned</option>
+                <option ${s.status==='Delayed'?'selected':''}>Delayed</option>
+              </select>
+              <button class="btn" style="font-size:12px;padding:6px 12px;" onclick="openEditShipmentModal('${s.id}')">✏ Edit</button>`
+          }
           <button class="btn btn-danger" style="font-size:12px;padding:6px 12px;" onclick="deleteShipment('${s.id}')">✕</button>
         </div>` : ''}
       </div>`;
@@ -3429,6 +3761,7 @@ function autoFlipOverdueShipments() {
 }
 
 function changeShipmentStatus(id, newStatus) {
+  const s = shipments.find(s => s.id === id);
   if (!s) return;
   const prevStatus = s.status;
   s.status = newStatus;
