@@ -45,7 +45,7 @@ internet connection (for most tasks).
    and quantity per location for the item of interest.
 
 ## Authors
-* [Channel](https://github.com/cblue718)
+* [Chanel](https://github.com/cblue718)
 * [Haojie](https://github.com/aslhhhhj97)
 * [Ian](https://github.com/ian-s-mcb)
 * [Manuela](https://github.com/Mchalen21)
