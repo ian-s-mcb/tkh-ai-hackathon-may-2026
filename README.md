@@ -50,7 +50,7 @@ internet connection (for most tasks).
 * [Ian](https://github.com/ian-s-mcb)
 * [Manuela](https://github.com/Mchalen21)
 * [Mike](https://github.com/mikeadarkwah-beep)
-* Ozor
+* [Ozor](https://github.com/ozormoya1794-a11y)
 
 [stakeholder]: https://www.indigowellnessgroup.com/
 [tkh]: https://www.theknowledgehouse.org/
